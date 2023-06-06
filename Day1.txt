@@ -1,0 +1,232 @@
+Why nosql?
+-- developer friendly
+-- fixed/rigid schema based, joins --RDBMS
+-- mongodb --document based
+-- no fixed schema
+-- kind of data -- text, images,videos, audio; structured data, unstructured data, semi structured
+-- volume of data -- big data
+-- persistence of data
+-- open sources
+-- compliant with various os
+-- file system , sharding 
+-- 16mb -- document size or record size; 
+-- gridfs -- audio, video, doc size >16mb; explicitly use the feature using the command/tool -- 
+-- design considerations: embedded design, reference model(more like foreign key concept -- 2 step process)
+-- replication is in built
+-- sharding is in built
+-- Scaling up and scaling down 
+-- not ACID compliant
+-- Neo4j: no sql database; but ACID compliant
+-- mongodb -- certain operation which can be performed as a transactions ;no concept of rollback(without transactions); query timeout;
+-- mongodb -- not ideal for transaction based applications  
+-- CAP theorem
+-- are cloud compliant
+
+
+4 types of nosql
+1. Document based -- mongodb
+2. Column based -- 
+3. Key value based -- redis 
+4, Graph based -- neo4j
+
+
+Iqbal -Cricket,tennis, watching movies
+Raphael -- Playing guitar, watching movies
+Anup -- Golf
+Azfar -- music,cricket,soccer, shopping, playing with pets
+
+create table employees(
+empId varchar2(20) primary key
+name varchar2(20),
+
+);
+
+create table hobby(
+empId varchar2(20),
+hobbyId varchar2(20),
+description varchar2(20),
+primary key(empId,hobbyId)
+)
+
+Query name and hobby description -- Join 2 tables
+1 million --emp
+each emp -3 hobbies:; hobby -- 3 million records
+Performnace : Join 2 tables ; table a (1 million records), table b (3 million records) -- Resource intensive(time and memory)
+
+
+
+Normalisation 
+1st NF: no multi valued attributes
+
+social media -- 10 years
+ main data -- text, audio,video, images
+
+aadhaar number : name, phone number, address, photo(image), pincode, 2 retina scans(image), 10 finger prints(image) -- 13 images
+Population of India : 1.4 billion people; 1 billion enrolled for aadhaar;
+Images to be stored -- 13 billion images 
+Can i store/retrieve  in RDBMS effectively  -- NO
+13 images of 1 billion people -- mongodb
+
+Oracle images-- blobs, clobs;complex
+sql -- resource intensive 
+nosql -- no schema, 
+mongodb -- gridfs-- store billions of images; retrieve really quick
+
+Image -- 128mb;
+gridfs -- Convert the image into binary format;break the data into different chunks (chunk size -- 64mb); 2 chunks;
+retrieving the image: arrange the various chunks in correct order and give me the image
+
+format is not important
+
+image store in the cloud ; image link -- store in database;
+retriev the image : retreive the link from the db; access the cloud url and get the image
+
+Data in mongodb : compressed data; backup can be data(normal, incremetal backup)
+Cloud : pay as u go; 
+
+Scaling
+-- Vertical scaling
+	-- RDBMS
+	-- Increase the cpu amd memory of single server
+	-- Advantages :
+		--Only one server to manage;
+		--Comparitively easier to manage one server
+		-- No syncing among various servers requires
+		-- Full consistency of data(read/writes)
+		-- No duplication/redundnacy of data
+		-- Managing data easier	
+	-- Disadvantages
+		--Single server -- server goes down-- app goes down
+		-- Availability of data 
+		-- hardware restriction 	
+
+-- Horizontal scaling
+	-- nosql
+	-- Increase the number of servers (commodity)
+	-- Advantages 
+		-- Cost effective 
+		-- High availability
+		-- Scale up or scale down is easier operation 
+	--Disadvantages
+		-- Consistency of data (reads/writes)-- eventual consistency 
+		-- chance/probability for reading stale data
+		-- Syncing of data between the various servers-- operations
+		-- Redundancy of data 
+Normal day 
+Amazon : Users : 15 million
+Amazon Prime day sale: Users: 20 million
+After 1 week of sale : 15 million
+
+On premise setup: 
+
+Scenario 1: Vertical scaling
+Normal day Single server: 1tb memory ; 256gb RAM
+Amazon sale :Single server: 10tb memory ; 512gb RAM
+After 1 week of sale : reduce 10tb to 1 tb; 512gb ram -- 256gb ram -- complex
+
+Scenario 2: Horizontal scaling:
+Normal day 10 server: 100gb memory ; 64gb RAM
+Amazon sale :20 servers: 100gb memory ; 64gb RAM
+After 1 week of sale : remove 10 servers
+
+pen drive:usb drive 
+64gb usb drive : 15$ (2023)
+64gb usb drive : 250$ (2003)
+memory has become cheaper
+
+Iphone 14 64gb:
+Iphone 14 256gb:100$ more
+
+
+Horizontal scaling
+3 servers (each 1 tb disk  capacity) -- all 3 servers will have same data -- replication of data
+5 servers: 
+
+sharding 
+3 servers(3tb of data is distributed among the 3 servers)
+amazon sale increasing the shards to 5 servers() -- 3tb of data will be distributed among 5 -- automatic process -- load balancer(best practice : maintanence period);
+
+CAP theorem 
+acheive full consistency (other drawbacks)
+
+high transactions -- mongodb is not ideal
+huge volumes of data -- mongodb is ideal  
+high availability -- mongodb is ideal
+disaster recovery -- mongodb is ideal
+
+Insert 1 million records per hour -- bulk insert / import operation
+
+Transaction depends on 
+1. Volume of data in each table;
+2. Number of tables to be refered(more than 2 )
+3. kind of operation to be performed 
+4. 
+
+transaction -- perform multiple operations on different tables as a single unit of work 
+website -- buy multiple computer accessories; payment ; mongodb is ideal; sequence of tasks 
+
+CAP theorem
+C -- Consistency -- read -- most updated data
+A -- Availabilty -- data should be available 24/7
+P -- Partition tolerance -- 
+adhere 2 out of the 3 principles 
+mongodb - AP ; eventual consistency
+mongodb -- standalone server -- CA
+
+
+Availability and full consistency;
+
+column based: products available in dell
+cassandra: data is always stored in partitions
+30 categories
+1 specific category -- laptops -- models inspirion, xps 
+mouse -- wired mouse, wireless mouses
+primary key = partition key + sort key(optional)
+partition key : category
+sort key : product type;
+
+All records which have the same partition key will be stored together physically
+Within the same partition, they will be sorted and stored according to sort key;
+
+All the laptops available in dell : faster retrival 
+Majority of queries are going to based on categories -- cassandra is a good choice
+Majority of queries are going to based on productId -- key value based
+
+Google maps : show me various paths from point A to point B 
+Not suitable : 
+--Key value based
+--Column based 
+
+Graph based -- More suitable
+
+mongodb -- master- slave architecture -- replication of data; writes -- master;
+couchbase -- ring architecture	; write/read to any node in the ring 
+
+write intensive app -- couchbase over mongodb
+read intensive app -- both are suitable; look at other requirements
+
+Database selection:
+1. Kind of data
+2. Kind of queries: 
+3. Important requirement with respect to performnace : Consistency vs availability
+4. Kind of application
+5. Volume of data
+6. Volume of operations 
+7. Availability -- cloud db -- dynamodb ; SLA 99.99% availability
+
+sudo apt-get install -y mongodb-enterprise=6.0.4 mongodb-org-database=6.0.4 mongodb-enterprise-server=6.0.4 mongodb-enterprise-mongos=6.0.4 mongodb-enterprise-tools=6.0.4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

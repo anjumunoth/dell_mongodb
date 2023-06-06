@@ -1,0 +1,149 @@
+Mongodb
+-- no schema
+-- create a table with datatype constraints or PK Or FK or check constraints
+-- 
+
+In Mongo shell:
+Create a database
+use dellDb;
+
+Create a collection: Inserting a document(record) -- collection will get created implicitly if the collection doesnt exists
+
+Mongodb -- bson -- binary json -- superset of json
+json --- number, string, boolean, date, array,object, function
+bson --- json + int32 , int64, double, ObjectId
+
+ObjectId : 12byte hexadecimal number
+-- Generated 
+	-- created machineid+ processId + timestamp+counter
+
+
+
+Anju -- github id -- https://github.com/anjumunoth/dell_mongodb.git
+sudo systemctl start mongod
+
+sudo systemctl status mongod
+
+Default location of data files:/var/lib/mongodb
+Default location of log files:/var/log/mongodb
+Service
+Port : 27017
+Host : localhost
+
+Configuration file: /etc/mongod.conf
+
+To change the permissions for the log file. Open a terminal from respective folder:
+sudo chmod 777 mongod.log
+
+RDBMS	Mongodb
+Database -- Database
+Table -- Collection
+Record -- Document(json object)
+column -- Field
+
+
+Create a database:
+use databasename
+use dellDb
+
+Create a collection:
+db.collectionName.insertOne({document details})
+db.student.insertOne({"studId":101,studName:"sara",marks:[10,20,30]});
+
+db.student.insertOne({"studId":102,studName:"Mara",marks:[20,30,40]});
+
+db.student.insertOne({"studId":103,studName:"tara",marks:[40,20,30]});
+
+
+// Create a new collection : studnet
+
+
+
+1. Database name -- correct case (best practice -- camel case)
+2. Never use keywords as field names
+3. Check ur collection name
+4. Check the object syntax
+
+select * from student;
+db.student.find();
+
+Insertion of a document:
+IF _id is not provided :
+	_id is auto generated
+  _id -- ObjectId
+If _id is provided:
+	_id -- string, number, ObjectId,date
+_id 
+	-- unique identifier of the document (PK)
+  -- immutable 
+  
+Whenever a collection is created, at the background implicitly a unique index is created on _id field
+. This unique index only maintains unique of the docs
+-- Index cannot be deleted explicily
+-- When the collection is dropped, the _id index is also deleted implicitly
+Can I have compound PK -- No
+Can i change the PK to some other field other than _id -- NO
+
+db.student.insertOne({studId:105,studName:"Ram",marks:[90,90,90]});//yes
+db.student.insertOne({studId:105,studName:"Ram",marks:[90,90,90]});//yes
+
+db.student.insertOne({studId:106,studName:"Shyam",marks:[10,10,10], _id:106});//yes
+db.student.insertOne({studId:107,studName:"Gita",marks:[20,20,20], _id:106});//no
+
+Null value for a column in Oracle -- unknown , no value
+
+Mongodb : skip that field; -- schemaless database ; allows null 
+
+Not null constraint : not possible
+schema constraints : 
+insertMany() -- to insert multiple documents
+db.student.insertMany([
+{studId:110,studName:"Ganesh",marks:[10,10,10]},
+{studId:111,studName:"Harry",marks:[70,60,10]},
+{studId:112,studName:"Sam",marks:[20,20,20]},
+
+])
+
+db.student.insertMany([
+{studId:120},
+{studId:121, _id:106},
+{studId:122},
+])
+// 120 will get inserted and it will throw an exception at 121 and 122 will not get inserted -
+
+Find -- select 
+
+select * from tablename; 
+db.collectionName.find(filter document, projection document);// both the params are optional
+
+Projection document -- Exclusion list or inclusion list
+
+db.student.find({},{studId:1});// display all the documents; fields : studId,_id
+db.student.find({},{studId:1, _id:0});// display all the documents; fields : studId
+db.student.find({},{studId:1,marks:0});// error 
+
+select * from zipcode where state="MA";
+db.zipcode.find({state:"MA"});//474
+
+
+select * from zipcode where pop>5000;
+db.zipcode.find({pop: {$gt:5000}});//11176
+
+select * from zipcode where pop<5000;
+db.zipcode.find({pop: {$lt:5000}});//18177
+
+select * from zipcode where pop>=5000;
+db.zipcode.find({pop: {$gte:5000}});//11176
+
+select * from zipcode where pop<=5000;
+db.zipcode.find({pop: {$lte:5000}});//18177
+
+select * from zipcode where pop=5000;
+db.zipcode.find({pop: {$eq:5000}});//0
+
+select * from zipcode where pop!=5000;
+db.zipcode.find({pop: {$ne:5000}});//29353
+
+Logical operators
+Special operators
+Array operators
