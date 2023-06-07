@@ -1,0 +1,395 @@
+Assignments: Zipcode collection
+1. Get all the docs where state="MA" and loc >40
+2. Get all the docs where state="MA" and city name has only 3 characters
+3. Get all the docs where pop < 5000 and state is either MA or RI
+
+Logical operators : AND, OR, NOT
+select * from zipcode where state="MA" and pop > 5000
+And: 
+db.zipcode.find({
+	$and:[
+  {	state:"MA"},
+  {pop :{$gt:5000}}
+  ]
+})
+
+Or:
+select * from zipcode where state="MA" or pop > 5000
+db.zipcode.find({
+	$or:[
+  {	state:"MA"},
+  {pop :{$gt:5000}}
+  ]
+})
+
+Not : Differently in mongodb
+3 docs:
+1. Field exists
+2. Field is missing
+3. Field can have a null value
+db.student.find({studId:101});//where studId=101
+
+db.student.find({studId: {$not :{$eq:101}}})
+//All docs where studId !=101
+// All docs where studId is missing
+3. All docs where studId has a null value
+
+
+Special operators:
+$type -- Expects a number or string
+	Select all the docs for which _id is a int32:
+  db.student.find({_id:{$type: 16}})
+  
+  Select all the docs where the studId is null
+  db.student.find({studId:{$type: 10}})
+  // Docs for which empId does not exists -- NO
+  
+  Select all the docs where the studId is not null
+  db.student.find({studId:{$not :{$type: :10}}})
+  
+   
+$exists: Check for the existence of a field -- true or false
+	db.student.find({studId:{$exists:true}})
+  
+Select all the docs where studId exists and is not null
+Anju :
+db.student.find({$and:[{studId:{$exists:true}},{studId:{$not :{$type: 10}}}]});
+
+db.student.find({studId:{$exists:true},studId:{$not :{$type: 10}}});// Wrong for this requirement
+When to use comma: Join 2 conditions using "and"; 2 conditions should be based on different fields 
+
+Raphael 
+db.student.find({$and:[{studId:{$not:{$type:10}}},{studId:{$exists:true}}]})
+
+
+kazim db.student.find({$and: {studId:{$exists:true},{studId:{$not :{$type: :10}}}}})
+
+phat:
+  var pred1={studId: {$not :{$type:10}}}
+  var pred2={studId: {$exists: true }}
+  db.student.find({$and: [pred1, pred2] })
+  
+  
+Loraine - 
+db.student.find({$and:[{studId:{$exists:true}},{studId:{$not :{$type: 10}}}]});
+Ashwaq
+
+Renan
+db.student.find({studId:{$ne:null}})
+
+$in:
+db.zipcode.find({state:{$in :["MA","AK","RI"]}});//738
+
+$nin
+db.zipcode.find({state:{$nin :["MA","AK","RI"]}});//28615
+
+between:
+ Docs for which pop is in the range 5000 to 10000
+db.zipcode.find(
+ { pop : {$gt:5000,$lt:10000}}).count();
+
+regex like 
+Get all the states which start with M
+db.zipcode.find(
+ { state:/^m/i}).count();//4733
+
+Get all the states which end with i
+db.zipcode.find(
+ { state:/i$/i}).count();//1741
+
+db.zipcode.find(
+ { state:{$regex:"ai$",$options:"i"}}).count();
+
+Get all the states which have the letter k
+db.zipcode.find(
+ { state:/k/i}).count();//2305
+
+starts with m and ends a
+db.zipcode.find(
+ { state:/^ma$/i}).count();//4733
+
+db.zipcode.find(
+ { state:/^m.*a$/i}).count();//
+
+Array operators
+Whole array matching -- exact match:exact position
+db.zipcode.find(
+{
+	loc:[
+    -72.622739,
+    42.070206
+  ]
+})
+
+db.zipcode.find(
+{
+	loc:[
+    42.070206,
+    -72.622739
+  ]
+});// 0
+
+// Search if the elements are present (any order)
+db.zipcode.find(
+{
+	loc:{$all:[
+    42.070206,
+    -72.622739
+  ]}
+});// 0
+
+// Search if a particular element is present at a particular position
+db.zipcode.find(
+{
+	"loc.1":42.070206,
+}
+});//1
+db.zipcode.find(
+{
+	"loc.0":42.070206,
+}
+});//0 docs
+
+db.zipcode.find(
+{
+	"loc":{$gt:40}
+}
+});//13631; docs with any element can be greater than 40
+
+
+
+check for a given value(any position in the array)
+
+check for a given value at a given position in the array)
+
+db.zipcode.find({
+
+ $and:[
+
+ { state:"MA"},
+
+ {pop :{$gt:5000}}
+
+ ]
+
+}).count()
+
+ 
+
+db.zipcode.find(
+ {state:"MA", pop : {$gt:5000}}).count();
+ 
+ Docs for whicg pop is in the range 5000 to 10000
+db.zipcode.find(
+ { pop : {$gt:5000,$lt:10000}}).count();
+ 
+ Select state,city from zipcode where pop>5000
+ db.zipcode.find({pop:{$gt:5000}},{state:1,city:1})
+ 
+ db.zipcode.find({
+ "pop":{ "$gt" : 5000  }
+},{
+   "state": 1,
+   "city": 1
+}
+);
+
+{ state:/^m*.a$/i};// start with m, there can be 0 or more characters after m and ends with a
+
+
+Assignments: Zipcode collection
+1. Get all the docs where state="MA" and loc >40
+2. Get all the docs where state="MA" and city name has only 3 characters
+3. Get all the docs where pop < 5000 and state is either MA or RI
+4. 
+
+Objects
+db.restaurant.find({"address.zipcode":"10462"});//2626
+
+db.restaurant.find({"address.coord.0":{$gt:70}});//2
+
+
+1.Cuisine:"American " and zipcode ="10462"
+
+Loraine - {cuisine:"American ","address.zipcode":"10462"}
+
+db.restaurant.find({"address.zipcode":"10462",cuisine:"American "}).count()
+db.restaurant.find({$and:[{"cuisine":"American "},{"address.zipcode":"10462"}]}).count()
+
+var pred1={"cuisine": 'American '}
+var pred2={"address.zipcode": '10462'}
+db.restaurants.find({$and: [pred1, pred2]})
+
+
+
+
+2.Street has "park" in its name
+Loraine - {"address.street":/park/i};//66
+Raphael - {"address.street":/park/i}; //66
+Ashwaq db.restaurant.find({"address.street":/park/i}).count() /66
+var pred1={"address.street": /park/i }
+db.restaurants.find(pred1).count()
+
+
+3. List the various cuisines in zipcode "10462";//26
+Ashwaq db.restaurant.find({"address.zipcode":"10462"},{cuisine:1}).count()
+
+//Phat
+var pred={"address.zipcode": '10462'}
+var proj={cuisine: 1, _id:0}
+db.restaurants.find(pred,proj)  //phat
+
+
+
+Date:
+may 31,1977 -- Azfar
+
+db.emp.insertOne({empId:101,empName:"Azfar",dob:new Date(1977,4,31)});// 30-5-1977; 6:30pm
+db.emp.insertOne({empId:102,empName:"Azfar",dob:new Date(1977,4,31,9)});// 31-5-1977; 3:30am
+db.emp.insertOne({empId:103,empName:"Azfar",dob:new Date("1977-05-31")});// 31-5-1977; 12:00am
+
+// Phat : 12:07pm (Morning)
+// Anju : 21:38; 9:38pm
+
+YYYY-mm-ddTHH:MM:ss>
+1.
+db.emp.insertOne({empId:104,empName:"A1",dob:new Date("1977-05-31T15:00:00")});// 
+
+<YYYY-mm-ddTHH:MM:ssZ>" -- client's data time
+2.
+db.emp.insertOne({empId:105,empName:"A2",dob:new Date("1977-05-31T15:00:00Z")});// 
+
+new Date(<integer>)
+3.
+db.emp.insertOne({empId:106,empName:"A1",dob:new Date(123456789)});// number of ms which have elapsed 1st jan 1970
+
+new Date(); current date and time: UTC date;
+4.
+db.emp.insertOne({empId:106,empName:"A1",dob:new Date()});// 
+
+
+db.emp.insertOne({empId:107,empName:"A1",dob:new Date()});// Greenwich's time
+
+Anju :
+[ {
+    _id: ObjectId("6480adea1e9fd79387c0dc48"),
+    empId: 115,
+    empName: 'A2',
+    dob: ISODate("1977-05-31T15:00:00.000Z")
+  },
+  {
+    _id: ObjectId("6480adf51e9fd79387c0dc49"),
+    empId: 114,
+    empName: 'A1',
+    dob: ISODate("1977-05-31T09:30:00.000Z")
+  }
+
+  
+  {
+    _id: ObjectId("6480ac9f1e9fd79387c0dc45"),
+    empId: 106,
+    empName: 'A1',
+    dob: ISODate("1970-01-02T10:17:36.789Z")
+  },
+  {
+    _id: ObjectId("6480acb51e9fd79387c0dc46"),
+    empId: 107,
+    empName: 'A1',
+    dob: ISODate("2023-06-07T16:13:41.734Z")
+  }
+]
+
+
+
+
+ 
+Phat:
+{
+
+ "_id" : ObjectId("6480adfd5c62bb1c4b58f27a"),
+
+ "empId" : NumberInt(114),
+
+ "empName" : "A1",
+
+ "dob" : ISODate("1977-05-31T19:00:00.000+0000")
+
+}
+
+{
+
+ "_id" : ObjectId("6480adfd5c62bb1c4b58f27b"),
+
+ "empId" : NumberInt(115),
+
+ "empName" : "A2",
+
+ "dob" : ISODate("1977-05-31T15:00:00.000+0000")
+
+}
+{
+
+ "_id" : ObjectId("6480adfd5c62bb1c4b58f27c"),
+
+ "empId" : NumberInt(116),
+
+ "empName" : "A1",
+
+ "dob" : ISODate("1970-01-02T10:17:36.789+0000")
+
+}
+
+{
+
+ "_id" : ObjectId("6480adfd5c62bb1c4b58f27d"),
+
+ "empId" : NumberInt(117),
+
+ "empName" : "A1",
+
+ "dob" : ISODate("2023-06-07T16:19:09.515+0000")
+
+}
+
+
+db.cakeSales.find( { orderDate: { $lt: ISODate("2021-02-25T10:03:46.000Z") } } )
+
+select sysdate +1 from emp;
+select salary, salary*2 as bonus from emp;
+Aggregation pipeline
+
+Array of objects
+All the docs where any of the scores is greater than 5
+db.restaurant.find({"grades.score" :{$gt:5}})//3740
+
+All the docs where the element at the fourth position has a score greater than 5
+db.restaurant.find({"grades.3.score" :{$gt:5}});//2915
+
+Arrays:
+
+db.restaurant.find({
+$and:[
+{"grades.score":2},
+{"grades.grade":"A"}
+]
+});//717
+
+// Search for a doc where any element satisfy one condition and another element can also satisfy the other condition
+db.restaurant.find({
+"grades.score":2,"grades.grade":"A"}
+);//717
+
+db.restaurant.find({
+grades: {$elemMatch:{score :2,grade:"A"}}
+});// Searching for a single element which matches both the condition -- 671
+
+$all: Search for existence of a sub array(completely) ignoring the order; values have to match exactly
+
+
+
+
+
+
+
+
+
