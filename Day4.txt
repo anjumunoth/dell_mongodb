@@ -1,0 +1,214 @@
+ Date and time as part of local system -- 
+ 	Mongodb -- date and time -- UTC way
+  client -- store local datetime -- convert it to UTC format and store it in mongodb
+  client -- retrieve data-- convert the date(UTC format) to the local format 
+
+date -- new Date();current UTC date and time
+
+// Sort
+Sort on basis of field(s); 
+-- number, string,array,object, embedded field
+-- asc or desc order
+-- collation 
+
+[{empId:101,empName:"Sara",projectId:"P101"},
+{empId:102,empName:"Keshav",projectId:"P101"},
+{empId:103,empName:"saurabh",projectId:"P102"},
+{empId:104,empName:"Giri",projectId:"P102"},
+{empId:105,empName:"Saraansh",projectId:"P103"},
+{empId:106,empName:"piyush",projectId:"P104"},
+{empId:107,empName:null,projectId:"P104"},
+{empId:108,projectId:"P105"},
+{empId:109,empName:"Pranav",projectId:"P105"},
+{empId:110,empName:"Puja",projectId:"P104"}]
+
+db.emp.find({},{empId:1,_id:0}).sort({empName:1});
+//field missing;null;special characters;  uppercase;lowercase
+
+//  lowercase and uppercase -- specify the collation rules
+// ignore the case
+
+db.emp.find({},{empId:1,_id:0}).sort({empName:1,salary:-1});
+
+// Skip
+db.emp.find().skip(3);// skip the first 3 docs and return the rest of the result set; 104 --110
+
+//Limit
+db.emp.find().limit(3);// limit the result set to the first 3 docs; 101 --103
+
+// skip and limit together -- first skip will be executed and then limit
+db.emp.find().skip(3).limit(3);// 104,105,106
+
+db.emp.find().limit(3).skip(3);// 104,105,106
+
+
+update:
+-- updateOne ; Update a single doc
+-- updateMany ; Update multiple docs
+-- update (deprecated in many drivers)
+-- upsert operation; if doc exists acc to filter criteria -- update the doc, but if no doc found, it will insert a new doc
+
+update emp set salary =1000 where empId=101
+db.emp.updateOne(filter doc, how to update doc)
+db.emp.updateOne({empId:101}, {$set:{salary:1000}})
+// Output : 
+
+db.employee.insertMany(
+[{empId:101,empName:"Asha",salary:1001,deptId:"D1"},
+{empId:102,empName:"Gaurav",salary:2000,deptId:"D1"},
+{empId:103,empName:"Karan",salary:2000,deptId:"D2"},
+{empId:104,empName:"Kishan",salary:3000,deptId:"D1"},
+{empId:105,empName:"Keshav",salary:3500,deptId:"D2"},
+{empId:106,empName:"Pran",salary:4000,deptId:"D3"},
+{empId:107,empName:"Saurav",salary:3800,deptId:"D3"}]
+)
+
+db.employee.updateOne({empId:101},{$set:{salary:5000}});//nMatchedCount:1; nModifiedCount:1
+db.employee.updateOne({empId:101},{$set:{salary:5000}});//nMatchedCount:1; nModifiedCount:0
+
+db.employee.updateOne({empId:{$gt:101}},{$set:{salary:5000}});//nMatchedCount:1; nModifiedCount:1;102
+
+db.employee.updateOne({empId:999},{$set:{salary:5000}});//nMatchedCount:0; nModifiedCount:0
+
+Can nMatchedCount =0 and nModifiedCount =1; NOT possible
+
+db.employee.updateOne({empId:101},{$set:{location:"India"}});//nMatchedCount:1; nModifiedCount:1; Add the field
+
+update employee set salary=salary+10000 where empId=107;// After the updation 13800
+db.employee.updateOne({empId:107},{$inc:{salary:10000}});//nMatchedCount:1; nModifiedCount:1; 
+
+update employee set salary=salary-10000 where empId=106;// 
+db.employee.updateOne({empId:106},{$inc:{salary:-10000}});//nMatchedCount:1; nModifiedCount:1; 
+
+update employee set salary=salary*2 where empId=105;// $mul
+
+Rename a field : DDL $rename
+db.employee.updateOne({empId:101},{$rename:{location:"projectLocation"}});//nMatchedCount:1; nModifiedCount:1; 
+
+db.employee.updateMany({},{$rename:{location:"projectLocation"}});
+
+db.employee.updateOne({empId:101},{$rename:{location:"homeLocation",empName:"employeeName"},$set:{salary:10000,employeeName:"Harry"}});//nMatchedCount:1; nModifiedCount:1; 
+
+
+Remove a field: $unset
+db.employee.updateOne({empId:101},{$unset:{salary:1}});//nMatchedCount:1; nModifiedCount:1; 
+db.employee.updateOne({empId:102},{$unset:{salary:0}});//nMatchedCount:1; nModifiedCount:1; 
+
+$push:
+	-- Always works with array
+db.employee.updateOne({empId:101},{$push:{hobbies:"Swimming"}});//nMatchedCount:1; nModifiedCount:1;
+//Search for an array call as hobbies
+	-- If present ; append the value;
+  -- If array is not present; create the array called as hobbies and append the value to the array;
+
+db.employee.updateOne({empId:101},{$push:{hobbies:"surfing"}});
+// hobbies :["Swimming","surfing"]
+
+// Add multiple elements(h1,h2) to array in a single statement
+db.employee.updateOne({empId:101},{$push:{hobbies:["h1","h2"]}});// Not work according to my requirement
+// hobbies :["Swimming","surfing",["h1","h2"]]
+
+
+$each :
+	-- Works only with $push
+  -- Takes in an array
+  -- Appends each array element individually to the hobbies array
+db.employee.updateOne({empId:101},{$push:{hobbies:{$each:["gardening","reading books"]}}});
+// hobbies :["Swimming","surfing",["h1","h2"],"gardening","reading books"];
+
+// Add to the subArray -- middle of the hobbies array
+
+$position:
+-- Works only With $each ; $push
+-- Add element(s) at a particular position
+// Add a array element at a particular position
+//add "playing music" at 3rd position
+db.employee.updateOne({empId:101},{$push:{hobbies:{$each:["playing music"],$position:3}}});
+// hobbies :["Swimming","surfing",["h1","h2"],"playing music","gardening","reading books"];
+
+Append an element to the sub array
+db.employee.updateOne({empId:101},{$set:{"hobbies.2":["h1","h2","h5"]}});
+db.employee.updateOne({empId:101},{$push:{"hobbies.2":"h6"}});
+
+playing music to playing piano
+db.employee.updateOne({empId:101,hobbies:"playing music"},{$set:{"hobbies.$":"playing piano"}});
+
+Remove a particular element playing piano from array : pull or pullAll
+db.employee.updateOne({empId:101},{$pull:{hobbies:"playing piano"}});
+
+
+Remove the subArray
+db.employee.updateOne({empId:101},{$pull:{hobbies:subArray}});
+
+updateMany:
+-- update 0 or many docs
+-- minimum 2 params
+
+upsert operation:
+db.employee.updateOne({empId:999},{$set:{empName:"sam"}});//matchedCount:0;modifiedCount:0
+db.employee.updateOne({empId:999},{$set:{empName:"sam"}},{upsert:true});
+//insert a new doc; {_id,empId,empName} ;matchedCount:0;modifiedCount:0;upsertedCount:1;insertedId:autogenerated
+
+
+updateMany -- 
+db.employee.updateOne({empId:106},{$set:{salary:"hi"});
+db.employee.updateMany({empId:{$gt:106}},{$set:{salary:"hi"});
+
+db.employee.updateMany({empId:{$gt:100}},{$inc:salary:1000});
+// update some docs; throw an error at empId:999;
+
+db.employee.updateMany({empId:{$gt:1000}},{$set:salary:1000},{upsert:true});
+//matchedCount:0;modifiedCount:0;
+//upsertedCount:1; {_id,salary:1000}
+
+findOneAndUpdate:
+
+
+// search for a given name , ignoring the case
+db.employee.updateMany({empName:/pran/i},{}});
+
+//deleteOne
+// deleteMany
+
+deleteOne -- mark the document for deletion;
+
+select max(salary) from employee;
+//group by , having -- Aggregation pipeline
+// aggregate methods -- Aggregation pipeline
+// subqueries
+// joins: left outer join
+
+
+Aggregation Pipeline -- Most Important, unique feature in mongodb
+//group by , having -- Aggregation pipeline
+// aggregate methods -- Aggregation pipeline
+// generate new fields
+// generate new docs based on existing docs (temp )
+// store the result set in a collection (on premise, atlas, aws)
+// Info about the server
+// statistics, index info 
+// Sort, skip,limit, grouping of docs at many levels deeper
+// traversal
+// temp modify the docs for the view purpose
+// 
+
+
+
+Geo spatial data and indexes;
+
+
+// Regex and indexes -- full table scan;
+// text indexes -- 
+
+
+
+
+
+
+
+
+
+
+
+
+
