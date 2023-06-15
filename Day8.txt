@@ -1,0 +1,197 @@
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          Indexes : Alter the index : Not possible;
+But can change the expiryAfterSeconds can be modified after the index creation
+For other changes, drop the index and recreate the index
+Properties of indexes : Unique, sparse, partial 
+
+Types of indexes : simple, compound
+TTL index :
+-- Total time to Live
+-- Can be only build on fields which have date value, array of date values
+-- expireAfterSeconds : 300 seconds
+-- When 300 seconds have expired from the indexed field value, that doc will be marked for deletion
+-- Maintain session data, log data 
+
+db.logsColl.insertMany([
+{logId:101,description:"log1",logDate:new Date()},
+{logId:102,description:"log2",logDate:new Date(2023,1,2)},
+{logId:103,description:"log3",logDate:new Date(2023,6,14)},
+{logId:104,description:"log4",logDate:new Date(1977,5,5)},
+{logId:105,description:"log5",logDate:new Date(2023,6,2)},
+])
+
+db.logsColl.createIndex({logDate:1},{expireAfterSeconds:300})
+
+101 get deleted after 300 secs
+
+Converting a ttl index to non ttl index -- Drop the ttl index and create another one according to ur requirement
+
+Hashed Index:
+-- Field's value will be sent to a hashing algorithm; Hashed values will be used for indexing
+-- Even distribution of data
+-- ObjectId, date/time related data
+-- Queries -- normal
+-- Queries on range of values -- Hashed indexes are not preferred
+
+db.zipcode.createIndex({state:"hashed"});
+
+db.zipcode.find({state:"MA"});// use the hashed index
+"MA" -- hashing algorithm, hashed values will be matched for the index entries and the corresponding docs will be fetched
+
+Geospatial index
+-- Index on geo spatial data
+
+Text index
+-- In one collection , only one text index is allowed
+-- Text indexes are always very huge
+-- Can be created on multiple fields which have a string value
+-- Searching using the text index -- search through the index entries
+-- Index entries will be created based on different values in the various fields
+-- score which will be calculated
+-- Weights will be assigned each indexed field
+-- name :5; cuisine: 3
+-- Score -- (weigths* number of occurences in name)+ (weigths* number of occurences in cuisine)
+-- Docs based on their score values
+-- Performance benefit/ degradation:
+	-- Text index -- huge; stemmed word for index creation
+  -- Building the index -- time consuming process
+  -- Open file Description -- high limit
+  -- writes may become slower; for each write, index also has to be updated;
+  -- 
+  db.restaurant.createIndex({cuisine:"text",name:"text"},{weigths:{cuisine:10,name:1}})
+{$text: {$search: "\"bake\"", $caseSensitive:true}}
+
+{$text: {$search: "\"coffee shop\""}}
+
+{$text: {$search: "coffee shop bake"}}
+
+{$text: {$search: "bake"}}
+
+Get the scores:
+In projection : $meta
+db.zipcode.find({$text: {$search: "bake"}},{score:{$meta:"textScore"}})
+
+
+Wild card index :
+Text index which is build on all the string fields in the document
+
+
+Index on {state:1}
+
+db.zipcode.find().sort({state:1});
+// IXSCAN{state:1} --> FETCH
+// perform the sort operation explicitly -- no
+
+db.zipcode.find().sort({city:1})
+// collscan --> sort the docs
+
+
+Production environment:
+write intensive app -- normal working hours
+	Block ur writes -- 1secs ;
+  Background process -- normal working hours
+Maintanence period -- low writes/ no writes; 
+foreground process - exclusive lock 
+
+1. reIndex - rebuild Index -- skewed Btree
+	After the compact operation:
+  
+2. 
+
+RDBMS
+update
+
+insertMany([{success doc:101},{failure doc:102},{success doc:103}])
+
+updateMany({empId:{$gt:100,$lt:777777}});// update 1000 docs
+In another session
+updateMany({empId:{$gt:100,$lt:777777}});// update 1000 docs
+
+
+Replication:
+	Store the same data on multiple servers
+  High Availability
+  Redundancy of data
+  Syncing of data among the various servers
+  Any of servers -- down ; reads, writes -- happen
+  Consistency of data across servers
+  Failover; automatic failover ; Election
+  master-slave architecture
+  Read preference and write concern 
+  
+-- In a replica set -- max 50 members; 7 voting members; min - 1 member; best practice -- minimum 3 members 
+-- Distributed geographically
+-- Master -slave architecture
+-- One node which can handle the writes
+-- One or more nodes which can handle the reads
+-- Each and every member -  priority and vote 
+vote - 0(non voting member) or 1(voting member)
+priority - positive number; >=0
+
+
+
+Type of Members
+1. Primary Node 
+	-- Priority >0;
+  -- Vote -- 1
+  -- Only Primary can handle the writes 
+  -- Primary can handle the reads
+  -- Default configurations -- read/writes will be sent to the primary
+  -- Only 1 primary node per replica set
+  -- Will have actual(consistent) data
+  
+  
+2. Secondary nodes
+	-- Priority >=0
+  -- Vote : 0 or 1
+  -- Sync with the primary asynchronously
+  -- Can never handle the writes()
+  -- Have to configure so that it can handle the reads
+  -- 
+TYpes of secondary nodes
+1. Zero priority secondary node
+	-- Priority : 0;
+  -- Can never become the PRIMARY
+  -- vote : 0 or 1
+  -- For handling read queries (have to configure)
+  -- Will sync the data from the primary
+  
+2. Normal secondary node
+	-- Priority : >0
+  -- vote : 0 or 1 (only 7 voting members)
+  -- Can become the primary (has to win in the election )
+  -- For handling read queries (have to configure)
+  -- Will sync the data from the primary
+  
+3. Hidden secondary node
+	-- oPTIONAL to create; create when necessary
+	-- Hidden from the client
+  -- Can never become the primary
+  -- priority : 0; vote :0
+  -- Will sync the data from the primary
+  -- Cannot handle the reads as well 
+  -- Creating reports
+  -- Disaster recovery; for taking backups
+
+4. Delayed secondary: 
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

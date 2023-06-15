@@ -1,0 +1,322 @@
+db.projects.insertMany(
+[{projectId:"P101",projectName:"Store Front",projectDescription:"E Commerce Application"},
+{projectId:"P102",projectName:"CueBack",projectDescription:"Social Networking"},
+{projectId:"P103",projectName:"Premium Access",projectDescription:"Digital Course Library"},
+{projectId:"P104",projectName:"Freegal Music",projectDescription:"Libary of Songs"},
+{projectId:"P105",projectName:"Comlink Data",projectDescription:"Data Science"}]);
+
+db.employee.insertMany([
+{empId:101,empName:"Sara",projectId:"P101"},
+{empId:102,empName:"Keshav",projectId:"P101"},
+{empId:103,empName:"Saurabh",projectId:"P102"},
+{empId:104,empName:"Giri",projectId:"P102"},
+{empId:105,empName:"Saraansh",projectId:"P109"},
+{empId:106,empName:"Piyush",projectId:"P104"},
+{empId:107,empName:"Neha",projectId:"P104"},
+{empId:108,empName:"Priyam",projectId:"P105"},
+{empId:109,empName:"Pranav",projectId:"P105"},
+{empId:110,empName:"Puja",projectId:"P104"}])
+
+
+select * from employee left outer join projects on employee.projectId=projects.projectId
+Matched rows ;
+Unmatched rows in employee table
+Orcale :EmpId empName projectId projectId projectName projectDescription
+Mongodb:
+--Joined records will come in an array format
+$lookup:
+	-- Left outer join
+/**
+ * from: The target collection.
+ * localField: The local join field.
+ * foreignField: The target join field.
+ * as: The name for the results.
+ db.employee.aggregate(
+ [
+  {
+    $lookup:
+      /**
+       * from: The target collection.
+       * localField: The local join field.
+       * foreignField: The target join field.
+       * as: The name for the results.
+       * pipeline: Optional pipeline to run on the foreign collection.
+       * let: Optional variables to use in the pipeline field stages.
+       */
+      {
+        from: "projects",
+        localField: "projectId",
+        foreignField: "projectId",
+        as: "projectDetails",
+      },
+  },
+]);
+
+
+Inner Join:
+db.employee.aggregate(
+ [
+  {
+    $lookup:
+      /**
+       * from: The target collection.
+       * localField: The local join field.
+       * foreignField: The target join field.
+       * as: The name for the results.
+       * pipeline: Optional pipeline to run on the foreign collection.
+       * let: Optional variables to use in the pipeline field stages.
+       */
+      {
+        from: "projects",
+        localField: "projectId",
+        foreignField: "projectId",
+        as: "projectDetails",
+      },
+  },
+  {
+    $match:
+      /**
+       * query: The query in MQL.
+       */
+      {
+        projectDetails: {
+          $not: {
+            $size: 0,
+          },
+        },
+      },
+  },
+])
+
+Get the project details and the emp(s) details working in them
+db.projects.aggregate(
+[
+  {
+    $lookup:
+      /**
+       * from: The target collection.
+       * localField: The local join field.
+       * foreignField: The target join field.
+       * as: The name for the results.
+       * pipeline: Optional pipeline to run on the foreign collection.
+       * let: Optional variables to use in the pipeline field stages.
+       */
+      {
+        from: "employee",
+        localField: "projectId",
+        foreignField: "projectId",
+        as: "employeeDetails",
+      },
+  },
+])
+
+Get the project details and the emp(s) Names working in them
+db.projects.aggregate(
+[
+  {
+    $lookup:
+      /**
+       * from: The target collection.
+       * localField: The local join field.
+       * foreignField: The target join field.
+       * as: The name for the results.
+       * pipeline: Optional pipeline to run on the foreign collection.
+       * let: Optional variables to use in the pipeline field stages.
+       */
+      {
+        from: "employee",
+        localField: "projectId",
+        foreignField: "projectId",
+        as: "employeeDetails",
+      },
+  },
+  {
+    $project:
+      /**
+       * specifications: The fields to
+       *   include or exclude.
+       */
+      {
+        projectName: 1,
+        projectDescription: 1,
+        projectId: 1,
+        empNameDetails:
+          "$employeeDetails.empName",
+      },
+  },
+])
+
+
+$addField:
+[
+  {
+    $lookup:
+      /**
+       * from: The target collection.
+       * localField: The local join field.
+       * foreignField: The target join field.
+       * as: The name for the results.
+       * pipeline: Optional pipeline to run on the foreign collection.
+       * let: Optional variables to use in the pipeline field stages.
+       */
+      {
+        from: "employee",
+        localField: "projectId",
+        foreignField: "projectId",
+        as: "employeeDetails",
+      },
+  },
+  {
+    $addFields:
+      /**
+       * newField: The new field name.
+       * expression: The new field expression.
+       */
+      {
+        empNameArr: "$employeeDetails.empName",
+      },
+  },
+  {
+    $project:
+      /**
+       * specifications: The fields to
+       *   include or exclude.
+       */
+      {
+        employeeDetails: 0,
+      },
+  },
+]
+
+$bucket:
+[
+  {
+    $bucket:
+      /**
+       * groupBy: The expression to group by.
+       * boundaries: An array of the lower boundaries for each bucket.
+       * default: The bucket name for documents that do not fall within the specified boundaries
+       * output: {
+       *   outputN: Optional. The output object may contain a single or numerous field names used to accumulate values per bucket.
+       * }
+       */
+      {
+        groupBy: "$cuisine",
+        boundaries: [
+          "American ",
+          "Bakery",
+          "Hamburgers",
+          "Irish",
+        ],
+        default: "Others",
+        output: {
+          outputN: {
+            $sum: 1,
+          },
+          boroughArr: {
+            $push: {
+              borough: "$borough",
+            },
+          },
+        },
+      },
+  },
+]
+
+$collStats:
+db.zipcode.aggregate([
+  {
+    $collStats:
+      /**
+       * histograms: Optional latency histograms.
+       * storageStats: Optional storage stats.
+       */
+      {
+        latencyStats: {
+          histograms: true,
+        },
+        storageStats: {},
+      },
+  },
+])
+
+
+
+Indexes:
+-- quick lookup for the data; queries faster; performance benefits
+-- may make the query slower
+-- write intensive app ; write queries slower: write entry(data and indexes -- managed)
+
+-- B Tree index
+-- exclusive locks, shared locks 
+-- Index as a background process : 
+Mongodb -- replica set : secondary -- build the index(not a write operation)
+
+
+Types of indexes
+	Simple index: Index on a single field
+  	-- Data type of field: String, number, boolean, Array, Object, Embedded fields, ObjectId
+    -- Array -- multikey index
+    -- Asc or desc order is not going to make a difference. traversal can be done in both the directions
+    -- Syntax : db.collName.createIndex({restaurant_id:1});//
+    -- Different indexes on the same field can be created with different sort order;
+    
+  Compound index: Index on multiple fields
+  	-- Data type of field: String, number, boolean, Array, Object, Embedded fields, ObjectId
+    -- Sort order is very important
+    -- Order of the fields is also important
+
+db.zipcode.createIndex({state:1});
+db.zipcode.createIndex({city:1},{name:"idx_city"});
+db.zipcode.getIndexes();
+
+db.zipcode.dropIndex({state:1})
+db.zipcode.dropIndexes();
+
+db.zipcode.createIndex({state:1});// states are sorted
+For the foll queries will the index on {state:1} be used or not:
+db.zipcode.find({state:"mA"});// Yes; O/p: No docs
+db.zipcode.find().sort({state:1});// all the docs but in sorted order of state; Yes
+// how will this query executed:
+Scenario 2:
+	-- Scan through the index : (state values are sorted already); find the corresponding docs;
+
+db.zipcode.find({city:"AGAWAM"}).sort({state:1});
+//winning plan:
+	-- IXSCAN ; and filter on the docs where city: AGAWAM
+// rejected plans:
+-- Filter the docs on basis of city:AGAWAM --(full table scan ); and then the filtered docs will be sorted on the state
+  
+db.zipcode.find().sort({state:-1});//Yes
+db.zipcode.find();// NO;
+db.zipcode.find({state:/ma/i});//YES
+
+Covered query :Index gives the entire data to be projected
+
+LEts have a index on city and state:
+db.zipcode.find({city:"AGAWAM"}).sort({state:1});
+// which index will be used and why
+
+For the same field -- there are 2 indexes differing by the sort order -- which will be used: 
+
+
+
+Points to note:
+-- 
+
+
+
+Properties of indexes
+Partial index: 
+
+Size of index:
+Index In Memory:
+
+
+Storage Engine:
+
+Explain
+hint -- suggesting an index to use
+
+
+

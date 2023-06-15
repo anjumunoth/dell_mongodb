@@ -1,0 +1,213 @@
+Index on state : {state:1}
+
+1. Index on state{state:1} and city{city :1}
+db.zipcode.find({city:"AGAWAM"}).sort({state:1})
+plans:
+1. city index -- get the docs(after the filtration) and sort on basis of state
+2. state index ; get the sorted docs(all) and then filter on basis of city:"AGAWAM"
+3. 
+		
+winning plan
+city index -- get the docs(after the filtration) and sort on basis of state
+rejected plan
+state index ; get the sorted docs(all) and then filter on basis of city:"AGAWAM"
+
+2. Index on state {state:1}, {state:-1}
+-- Avoid creating 2 simple indexes which only defer by their sort order
+
+Which index to be used -- depends on the following factors 
+-- Cache memory faster access; most frequently used
+-- Usage 
+-- works
+-- saveState
+-- advanced 
+
+
+Index intersection is allowed -- multiple indexes used for the same query
+db.zipcode.find({state:"MA",city:"AGAWAM"});// 2 indexes {state:1},{city:1}
+1. {state:1 }; index entries for state:"MA"
+2. {city:1}; index entries for city:"AGAWAM"
+3. 1 & 2 will be merged and matching docs will be added to the result set
+
+
+AND_SORTED stage or an AND_HASH stages will be there in explain plan
+
+Index -- fasten the queries; do less document scans 
+
+Index on array -- multi key index:
+
+Each element in the array is going to be taken for the index creation
+db.zipcode.createIndex({loc:1});// multi key index
+
+1. db.zipcode.find({loc:[70,42]});// Result set : 0 docs ; exact match; YES
+2. db.zipcode.find({loc:{$gt:42}});// Any element can be greater than 42; YES
+3. db.zipcode.find({"loc.0":42});// If the 0th position has the value of 42; NO(specifically searching for the 0th element)
+
+Not so frequently created indexes
+Index on embedded field
+Index on object
+
+Compound index
+-- Index on multiple fields
+-- Order of fields is very important -- Prefix should always be present
+-- Sort order of fields is very important; Same order or exactly the opposite
+
+db.zipcode.createIndex({state:1,city:-1});// compound index
+
+db.zipcode.find({state:"MA",city:"AGAWAM"})// compound index will be used
+db.zipcode.find({state:"MA"});// compound index will be used
+db.zipcode.find({city:"AGAWAM"});// compound index will not be used; since prefix field of index is not present
+
+db.zipcode.find().sort({state:1,city:-1});//YES
+db.zipcode.find().sort({state:1,city:1});//NO
+db.zipcode.find().sort({state:-1,city:-1});//NO;
+db.zipcode.find().sort({state:-1,city:1});//YES
+
+db.zipcode.find().sort({state:1}) ;// YES
+db.zipcode.find().sort({state:-1});//YES
+db.zipcode.find().sort({city:-1});//NO
+db.zipcode.find().sort({city:1});//NO
+
+zipcode:
+Compound index : {state:1,city:-1}
+Simple indexes : {state:1}, {city:-1}
+
+db.zipcode.find({state:"MA",city:"AGAWAM"})
+queryPlanner", "executionStats", and "allPlansExecution".
+db.zipcode.find({state:"MA",city:"AGAWAM"}).explain("queryPlanner");//default value
+db.zipcode.find({state:"MA",city:"AGAWAM"}).explain("executionStats")
+db.zipcode.find({state:"MA",city:"AGAWAM"}).explain("allPlansExecution")
+
+queryPlanner Mode
+By default, 
+cursor.explain()
+ runs in queryPlanner verbosity mode.
+
+MongoDB runs the query optimizer to choose the winning plan for the operation under evaluation. 
+cursor.explain()
+ returns the queryPlanner information for the evaluated method.
+
+executionStats Mode
+MongoDB runs the query optimizer to choose the winning plan, executes the winning plan to completion, and returns statistics describing the execution of the winning plan.
+
+cursor.explain()
+ returns the queryPlanner and executionStats information for the evaluated method. However, executionStats does not provide query execution information for the rejected plans.
+
+allPlansExecution Mode
+MongoDB runs the query optimizer to choose the winning plan and executes the winning plan to completion. In "allPlansExecution" mode, MongoDB returns statistics describing the execution of the winning plan as well as statistics for the other candidate plans captured during plan selection.
+
+cursor.explain()
+ returns the queryPlanner and executionStats information for the evaluated method. The executionStats includes the completed query execution information for the winning plan.
+ 
+ 
+db.zipcode.find({state:"MA",city:"AGAWAM"}).explain("allPlansExecution")
+
+Possible execution plan
+1. Compound index
+2. Make use of city index and filter on state
+3. make use of state index and filter on city
+4. Intersection of 2 simple indexes
+
+Winning plan :
+1. cache -- index has a higher chance
+2. 
+
+hint:
+-- ask the execution engine to use a particular index
+Shell:
+db.zipcode.find({state:"MA",city:"AGAWAM"}).explain("allPlansExecution");// city index
+
+Hint to use the compound index
+db.zipcode.find({state:"MA",city:"AGAWAM"}).hint({state:1,city:-1}).explain("allPlansExecution");// city index
+
+
+Types of indexes
+1. simple
+2. compound
+3. ttl index
+4. geo spatial index
+5. hashed
+6. text 
+7. wild card index
+
+Properties:
+Sparse
+Unique
+Partial
+
+Unique:
+	-- No duplicate values for the indexed field
+  -- Can I have multiple unique indexes in same collection -- yes
+  
+Existing data in collection with duplicate values for the field on which unique index is going to be created- index build is going to fail
+	-- Single null is allowed or a doc with missing field is allowed
+	-- Is a single null allowed -- Yes
+  -- Multiple nulls not allowed
+  -- Can i have a single doc with the unique indexed field missing-- yes provided there are no null values for the field already
+  -- Can i have multiple doc with the indexed field missing -- NO
+	 Compound index -- unique : combination of indexed fields should be unique
+ 
+  
+db.employee.createIndex({empId:1},{unique:1})
+
+Sparse index
+db.employee.createIndex({empId:1},{sparse:1})
+	-- Take in only those docs which have the indexed field for creating the index
+  -- Can be Smaller than the regular index
+  -- Is a sparse unique index possible -- Yes; 
+  
+Partial index : 
+-- Can be simple or compound
+-- Subset of docs(which satisfy a condition(s)) for creating the index
+-- Condition can be on indexed field or any other field as well
+-- Condition:
+	$eq, $exists:true,$gt,$gte,$lt,$lte; $in, $type,$and, $or
+-- cannot be sparse
+-- _id cannot be used for a partial index
+db.restaurants.createIndex({cuisine:1},{partialFilterExpression:{borough:"Bronx"}})
+-- 1. Get all the docs which satisfy the condition :{borough:"Bronx"}
+   2. Create a index on cuisine field based on the returned docs from step1. 
+
+Sparse vs partial
+Sparse -- Docs which have field
+Partial -- Docs which have field and satisfy the condition
+
+
+db.restaurants.createIndex({cuisine:1},{partialFilterExpression:{borough:"Bronx"}})
+
+db.restaurants.find({cuisine:"American "});//no
+db.restaurants.find({cuisine:"American ",borough:"Bronx"});// yes
+db.restaurants.find({borough:"Bronx"});//no
+db.restaurants.find({borough:"Bronx"}).sort({cuisine:1});//yes
+
+
+
+  
+
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
