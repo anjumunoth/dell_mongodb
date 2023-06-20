@@ -1,0 +1,197 @@
+During elections: writes will fail
+But driver -- automatically retry once
+
+
+majority: 
+Number of members: Majority
+3 members : 2
+4members: 3
+5 members: 3
+6 members: 4
+
+write concern : number : 1,2,3...n or majority ; n- total number of members in replica set
+	-- Specify at server level or operation level(write query) 
+write operation: write concern :1 
+client --> write --> primary --> execute the write,and on success make an entry in oplog 
+--> acknowledge the client that write is complete --> secondaries will sync with the primary
+Adv: Query fast;(executed only on 1 server(Primary))
+Disadv: write has become success; oplog entry made; primary crashes -- acknowledgement not sent-- failure; data has been modified in primary and lets say has a sec has synched as well
+	Client -- failure; but data has been modified
+	write has become success; oplog entry made;acknowledgement of writes success is sent to client; no sec have synched and now primary fails
+  Client -- success; data is lost
+  
+  Primary(n1) has crashed but it has oplog entry and updated data;
+  eleigible secondary(n2) will become the primary.
+  n1 comes up after a delay; n1 will sync from n2 ;
+  n1 has some data which it got when it was primary. Rollback will occur on n1;
+  rollbacked(rollbacked has to be enabled) data will be added to a rollback file; dba now has to decide what to do with the rollback data
+
+write concern : w:2
+2 members of RS have to complete the write operation:
+
+client --> write operation --> go to the primary --> execute the write operation, make an entry into its own oplog
+--> once a secondary has synced with the primary asynchronous ;completed execution of write opeartion on its data
+--> ack of success will be given by client; other sec can sync with primary
+
+Adv: 
+	writes will be faster when compared to {w:majority}
+	Loss of data is going to be much lesser
+  Read query -- probability of reading stale data is lesser ; 2/n memebers have updated data
+disadv:
+	writes will be slower when compared to {w:1}
+  For example PSS; 2 of secondaries down; writes fails
+
+
+write concern: w:n
+-- All the nodes have finish the write -- for the ack to be sent;
+-- Avoided
+-- Makes the write query slower
+-- Even if one of nodes (let it be secondary) fails -- writes will fail
+-- Full consistency; read queries
+
+Let say PSSSS; write query; w:5;
+
+write query --> Primary --> finish --> 4 secondaries also have to finish --> ack will be sent to client
+
+One of secondary fails; Alive -- 4 members; {w:5}-- writes will fail;
+
+write concern : w:majority
+-- Best practice
+--Calculated:
+	-- lower of any of foll values
+  	-- majority of voting members(including arbiter)
+    	-- number of data bearing voting members
+    
+client -- write -- primary --> finish the op --> (majority-1) number of data bearing nodes have to sync the write op --> then only ack will be sent to the client
+Example : PSS
+majortity:2
+{w:majority};
+write : 2 nodes (P+ S) ;
+read -- probability of reading stale data : 1/3;
+Adv:
+	Good speed of write query
+  Consistency -- good amount of consistency -- read operation
+  
+    
+Example 1: PSSSS; all have votes :1; 5 voting members
+{w:majority};// Number of members who have to complete the write op :3
+majority of voting members(including arbiter):3
+number of data bearing voting members : 5
+
+Example 2: PSSSSAAAA; voting members :9
+{w:majority};// Number of members who have to complete the write op :5
+majority of voting members(including arbiter):5
+number of data bearing voting members : 5
+Majority :5
+
+Example 3: PSSSS; voting members :3
+{w:majority};
+majority of voting members(including arbiter):2
+number of data bearing voting members : 3
+Majority :2
+
+PSS
+One of Secondary goes down for 5 hours; no elections
+{w:majority};{w:2}; success
+Secondary comes up;
+-- Try syncing from the primary
+	-- Are there oplog entries in the primary from the time it when down
+  	-- YEs; sync from the primary
+    -- NO; delete its entire data(secondary which went down); perform full initial sync with primary
+
+chainingAllowed: true
+	Secondary can also sync with a fully synched secondary
+  
+  
+
+3 member replica set:
+port 1001,1002,1003
+
+data1, data2, data3
+
+replicaset name : rs1
+
+Creates a replication folder on desktop
+Created 3 folders named data1, dats2, data3 within replication folder
+Copied mongod.conf(/etc/mongod.conf) to replicatication folder
+Renamed the mongod.conf file to mongod1.conf
+
+Modify the mongod1.conf
+Change the dbPath to path to data1 -- line no. 8
+Change the path at line no.16 to "path to data1/mongod.log"
+Change the port: 1001;  line no 20;
+Uncomment replication; Remove # at line no.32
+Add a subfield called as replSetName: "rs1"
+Save the file
+
+Open a terminal 
+mongod --config "path to mongod1.conf"
+
+Modify the mongod2.conf
+Change the dbPath to path to data2 -- line no. 8
+Change the path at line no.16 to "path to data2/mongod.log"
+Change the port: 1002;  line no 20;
+Uncomment replication; Remove # at line no.32
+Add a subfield called as replSetName: "rs1" with the correct spacing
+Save the file
+
+sudo mongod --config "path to mongod2.conf"
+
+Modify the mongod3.conf
+Change the dbPath to path to data3 -- line no. 8
+Change the path at line no.16 to "path to data3/mongod.log"
+Change the port: 1003;  line no 20;
+Uncomment replication; Remove # at line no.32
+Add a subfield called as replSetName: "rs1" with the correct spacing
+Save the file
+
+sudo mongod --config "path to mongod3.conf"
+
+In a new terminal, connect to any one of the servers using mongo shell
+mongosh --port 1001
+
+Initialise the replica set:
+rs.initiate({
+	_id:"rs1",
+  members:[
+  {_id:0,host:"localhost:1001"},
+  {_id:1,host:"localhost:1002"},
+  {_id:2,host:"localhost:1003"}
+  ]
+})
+
+Index on a replica set 
+2 ways
+-- Rolling build of index -- secondary; other secondaries; primary come down; ex primary build the index
+-- Build the index on primary; primary add to oplog ; secondaries will also sync; secondaries will also build the index; index process complete
+
+buildIndexes -- true ; build index on primary
+buildIndexes -- false; rolling build
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+    
+
+    
+
+
+
+
+
+
+  
+  
+  

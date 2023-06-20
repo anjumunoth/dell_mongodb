@@ -1,0 +1,121 @@
+In a terminal
+mongosh --port 1001
+
+use replicaDb
+
+db.books.insertOne({bookId:"B101",bookName:"Alchemist",author:"paul Coelho"})
+
+db.book.find();
+
+Now connect to a secondary
+mongosh -- port 1002
+
+show dbs
+show collections
+
+db.books.find();
+MongoServerError: not primary and secondaryOk=false - consider using db.getMongo().setReadPref() or readPreference in the connection string
+
+rs.secondaryOk();// for a particular member and that respective session
+db.getMongo().setReadPref()
+Connection string;// for all the servers; readPreference
+
+readPreference:
+	primary : Only primary will be able to handle the reads; if primary is down, reads will start failing
+  primaryPreferred: If primary is available, go ahead with read from primary, if primary is not available, go to the secondaries
+  secondary: Only the secondaries will be able to handle the reads(PRimary will not), if none of the secondaries are available, the reads will fails 
+  secondaryPreferred: If secondaries are avialable, read from secondaries, but if none of the secondaries are avialable, read from the primary
+  nearest: whichever member(P or S) is the closest from query, that member will be able to handle the reads
+
+rs.status()
+rs.config()
+In a replica set -- max 50 members
+	-- max 7 voting members;
+  -- other 43 members votes -0
+  If votes=0, priority has to be zero;
+  if priority =0 , votes can be 0 or 1 (but only max 7 voting members);
+  non voting member can never become the primary
+
+
+Add a zero priority secondary member: 
+Will sync with the primary asynchronously
+Can surely handle reads(if configured)
+Can vote in elections
+can contribute for {w:majority}
+
+1. Create a folder : data4 in replication
+2. Create a mongod4.conf; (port :1004); 3 changes to be made
+3. mongod --config "path to mongod4.conf"
+4. Connect to the primary
+mongosh --port 1001
+5. rs.add({host:"localhost:1004",priority:0});
+6. rs.status(); rs.config()
+	4 members; 1004 --> priority : 0
+  
+  
+7. Connect to zero priority member
+mongosh --port 1004
+rs.secondaryOk()
+use replicaDb()
+db.books.find()
+  
+
+Add a normal secondary member with a priority 10(highest)
+Process:
+a. Get added as a other;
+b. Try to sync with the primary or fully synched secondary(full initial sync); Once complete will become the secondary
+c. 1005 will call for an election, 1005 will win (member with highest priority in RS)
+d. 1005 has become the primary
+
+1. Create a folder : data5 in replication
+2. Create a mongod5.conf; (port :1005); 3 changes to be made
+3. mongod --config "path to mongod5.conf"
+4. Connect to the primary
+mongosh --port 1001
+5. rs.add({host:"localhost:1005",priority:10});
+6. rs.status(); rs.config(); After sometime : 1005 -> Primary
+	5 members; 1005 --> priority : 10; votes:1
+
+
+Add an arbiter
+1. Create a folder : data6 in replication
+2. Create a mongod6.conf; (port :1006); 3 changes to be made
+3. mongod --config "path to mongod6.conf"
+4. Connect to the primary
+mongosh --port 1005
+5. rs.addArb("localhost:1006");// priority:0; votes:1
+6. rs.status(); rs.config(); After sometime : 1006 -> Arbiter
+
+Add an hidden member
+
+Add a delayed member
+
+To change the initial sync: How to do the initial sync on adding a new member
+In mongod.conf
+setParameter:
+	initialSyncMethod: "fileCopyBased"# whenever data volume is huge
+  initialSyncMethod: "logical"
+  
+
+  Make the primary down
+  1. Clean shutdown of primary server
+  a. Identify the primary is down
+  b. Elections will happen; all nodes have same priority; 1001 has been primary in the past and fully synched; 1001 will win
+  c. 1001 will become the primary
+  d. Insertions
+  e. 1005 come up; fully syncs with the current primary; since it has highest prioirity; call for an election ; will win the election
+  f. 1005 becomes the primary again
+  
+  
+  
+  Make the primary down:
+  rs.stepDown()
+  
+  
+  
+  
+  
+  
+  write concern : majority
+
+

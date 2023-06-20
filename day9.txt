@@ -1,0 +1,326 @@
+Replication:
+Replication:
+	Store the same data on multiple servers
+  High Availability
+  More number of servers for handling reads
+  Redundancy of data
+  Syncing of data among the various servers
+  Any of servers -- down ; reads, writes -- happen
+  Consistency of data across servers
+  Failover; automatic failover ; Election
+  master-slave architecture
+  Read preference and write concern 
+  
+-- In a replica set -- max 50 members; 7 voting members; min - 1 member; best practice -- minimum 3 members 
+-- best practice -- odd number of members in replica set
+-- Distributed geographically
+-- Master -slave architecture
+-- One node which can handle the writes
+-- One or more nodes which can handle the reads
+-- Each and every member -  priority and vote 
+vote - 0(non voting member) or 1(voting member)
+priority - positive number; >=0
+
+
+
+Type of Members
+1. Primary Node 
+	-- Priority >0;
+  -- Vote -- 1
+  -- Only Primary can handle the writes 
+  -- Primary can handle the reads
+  -- Default configurations -- read/writes will be sent to the primary
+  -- Only 1 primary node per replica set
+  -- Will have actual(consistent) data
+  
+  
+2. Secondary nodes
+	-- Priority >=0
+  -- Vote : 0 or 1
+  -- Sync with the primary asynchronously
+  -- Can never handle the writes
+  -- Have to configure so that it can handle the reads
+  -- 
+  
+3. Arbiter
+	-- Holds no data
+  -- Syncing -- Not needed
+  -- Priority -- 0
+  -- Vote --1
+  -- Take part in elections and break the tie
+  -- Commodity hardware; basic configuration
+  -- 
+  
+  
+TYpes of secondary nodes
+1. Zero priority secondary node
+	-- Priority : 0;
+  -- Can never become the PRIMARY
+  -- vote : 0 or 1
+  -- For handling read queries (have to configure)
+  -- Will sync the data from the primary
+  
+2. Normal secondary node
+	-- Priority : >0
+  -- vote : 0 or 1 (only 7 voting members)
+  -- Can become the primary (has to win in the election )
+  -- For handling read queries (have to configure)
+  -- Will sync the data from the primary
+  
+3. Hidden secondary node
+	-- oPTIONAL to create; create when necessary
+	-- Hidden from the client
+  -- Can never become the primary
+  -- priority : 0; vote :0 or 1
+  -- Will sync the data from the primary
+  -- Cannot handle the reads as well 
+  -- Creating reports
+  -- Disaster recovery; for taking backups
+
+4. Delayed secondary: 
+	-- Sync with the primary after the delay
+  -- Configure the delay time
+  -- For Example :delay -- 24 hours
+  -- 7:00pm(15th june) Sync with primary(7:00 14th june) after a delay
+  -- Should never become the primary
+  -- Priority :0
+  -- votes : 0 or 1
+  -- For getting the data which have been accidentally lost
+  -- Best practice -- should be hidden
+  
+Syncing of data between nodes
+
+Replica set :
+	Each and every member will have exchange a heartbeat every 2 seconds with other members
+  If a member is not heartbeat for 10 seconds -- member is down
+  
+Primary 
+  write operation coming to primary -- primary will perform the operation on its data 
+  -- make a log entry into its respective oplog collection(capped collection)
+  -- secondaries will asynchronously copy from the primary's oplog into their respective oplog collection
+  -- secondaries will execute their oplog entries and get the same data as in primary
+
+Pointers
+	-- Each secondary will copy asynchronously
+  -- In the latest versions, instead of copying, there is a streaming procees
+  -- Configure -- secondary can sync from a fully synched secondary 
+  -- Can have some lag between the primary and secondary
+  -- Checking the lag so that it doesnt grow very big
+  -- If the majority nodes have a lag > particular time(flow control); primary will need tickets to do writes
+  -- min retention period of primary's oplog > delayed secondary's delay time
+  
+Capped collection 
+-- cap on basis of default size or maximum number of docs
+-- Docs will get deleted whenever its beyond the default size or it has reached max number of docs
+
+Oplog -- special capped collection
+	-- read only collection
+	-- configured size -- soft bound
+  -- docs will get deleted
+  	size of oplog coll > configured size AND minimum retention period for the oplog entries has expired
+  -- can grow beyond the configured size
+  -- timestamp, type of opertaion and operation 
+  -- careful -- size of oplog and min retention period
+  	-- Write intensive app or read intensive app
+    App -- read intensive -- very few oplog entries -- small oplog coll
+    App -- write intensive app -- lot of oplog entries -- large oplog coll; retention period -- more
+
+Configuration of systems
+
+Delayed secondary -- Sync with the primary after 8 hours
+
+before 3 hours -- coll was dropped;
+
+delayed secondary -- delay time from 8 hours to 5 hours;
+coll will be present;
+backup of the coll alone
+restore the collection on primary; secondaries will async sync with the primary
+
+Convert delayed secondary to primary:
+Primary -- most up to date;
+delayed sec -- sync with primary after delay -- stale data
+Fully delayed sync with primary and then only make this node as a primary
+
+
+Primary oplog -- 100 entries; oplog is fulland min retention period has also expired;
+-- deletion of docs --30
+None of secondaries have synced after 20
+20 to 30 will get implicitly deleted;
+data is in  primary but the secondaries will never get sync -- inconsistency
+
+
+Batch copying <5.0
+streaming > 5.0
+
+Api fetch/modify the data from database and give it to the client;
+Another user -- modify the data in the database;
+Will the API will be notified about the changes in the data -- YES ; change stream
+
+Oplog -- special capped collection ;; only readable
+
+insertMany, updateMany, deleteMany -- will have individual oplog entries for each doc; 
+so oplog can become very huge when there are many bulk operations
+
+Failover :
+Replica set : PSS 
+Server has gone down : No heart beat for 10 sec
+1. Lets a secondary server goes down ; Still PS is alive;
+Reads -- success (primary, sec)
+Writes -- success (primary);
+
+2. Lets a primary server goes down:
+Reads -- success (sec have been configured to handle reads)
+Writes -- fail (primaryis down);
+Once primary down ; within 12 seconds a new primary has to be elected;
+Elections will happen
+
+Election process:
+Once a primary is down; the eligible secondaries(members who can become primary) will contest teh election;
+most eligible secondary(sec with the highest priority) will call for the election and there is a higher probability will win
+
+Election: 
+Contenstants :Multiple candidates (priority > 0) and have fully synched with primary
+1. Member which has the highest priority will become the primary
+2. Multiple members with highest priority -- any of member has been a primary in the past -- will become the primary
+3. Multiple members have been primary in the past -- voting members will vote and select a primary
+4. There is a tie in voting: arbiter(if present) will break the tie
+5. If no arbiter -- round robin process
+
+Lets take an example : 7 members: All have vote :1 ;
+n1(4),n2(9),n3(4),n4(0),n5(A),n6(6),n7(2);
+Initialise the replica set : elections will happen; n2 will become primary;
+n7 goes down -- no problem
+n2 goes down-- current primary ; elections will happen; n6 will win;
+
+n2, n6 goes down -- contenstants : n1,n3 
+n1 is not fully synced -- n3 will become primary
+
+n2, n6 goes down -- contenstants : n1,n3 
+n1,n3 fully synced -- n1 will win based on voting
+
+n2-- down, n6 comes up -- n6(after fully synching since its has the highest priority)as a secondary will call for election-- n6 will win
+
+When all will elections happen
+1. Replica set is initiated -- 
+2. Primary goes down
+3. Adding a new member to replica set
+4. rs.reconfig() -- reconfiguring the replica set
+5. rs.stepDown(timeperiod) -- done on primary; primary step down from primary ; current primary will become the secondary
+6. if a member comes up with the highest priority -- call the election
+
+Exceptions: Rare situations -- brief timeperiod
+1. There can be 2 primary ; network partition 
+2. A lower priority node can become the primary
+
+
+
+Syncing:
+Types of syncing:
+1. Initial sync
+2. Syncing from a particular pointer
+
+Driver :
+-- automatically retry once, detect the type of queries, based on queries, direct them to the respective members
+
+Nodejs driver
+Java driver 
+
+data -- bson
+mongo import and export -- json or csv
+mongo dump or mongo restore -- backup or restore of server/db/collection
+
+PSS
+Node2(secondary) goes down
+writes --> primary
+node2  has come up after an hour
+node2 will try to sync from the primary
+
+Scenario 1. In primary there are only oplogs for the last 30 minutes;
+since node2 will not be able to sync with the primary -- 
+--node 2 will delete its entire data and do initial sync -- entire process will happen implicitly
+
+Scenario 2: In primary there are oplogs for 3 hours
+node 2 will sync from the last checkpoint;
+
+manual failover -- best way
+stop the secondary; delete all its data file;
+start the secondary; 
+secondary has no data;
+perform a full initial sync(implicit process);
+
+Manually copy the files : writes may happen parallely to the primary; not advisable 
+
+India's DC maintanence:
+//res.stepdown on primary -- election -- eligible sec will become the primary;
+US member to become the primary --
+reconfig(); on eof members in US -- chnage the priority to highest; elections will happen
+N7 will become primary
+n1,n2,n3,n4 will stop (write concern has to be maintained)
+once maintanence done, start n1,n2,n3,n4
+
+
+switchover : 
+rs.stepDown(stepdown time);
+Making the primary step down to a secondary;
+will initiate the election -- eligible secondary will become primary
+
+n1(5),n2(3),n3(1)
+reconfig : n2(7); elections will happen; n2 becomes primary;
+max 12 seconds for elections and node becoming the primary;
+during the elections writes will fail;
+
+
+majority: 
+Number of members: Majority
+3 members : 2
+4members: 3
+5 members: 3
+6 members: 4
+
+write concern : number : 1,2,3...n or majority ; n- total number of members in replica set
+
+write operation: write concern :1 
+client --> write --> primary --> execute the write,and on success make an entry in oplog 
+--> acknowledge the client that write is complete --> secondaries will sync with the primary
+Adv: Query fast;(executed only on 1 server(Primary))
+Disadv: write has become success; oplog entry made; primary crashes -- acknowledgement not sent-- failure; data has been modified in primary and lets say has a sec has synched as well
+	Client -- failure; but data has been modified
+	write has become success; oplog entry made;acknowledgement of writes success is sent to client; no sec have synched and now primary fails
+  Client -- success; data is lost
+  
+  Primary(n1) has crashed but it has oplog entry and updated data;
+  eleigible secondary(n2) will become the primary.
+  n1 comes up after a delay; n1 will sync from n2 ;
+  n1 has some data which it got when it was primary. Rollback will occur on n1;
+  rollbacked(rollbacked has to be enabled) data will be added to a rollback file; dba now has to decide what to do with the rollback data
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
