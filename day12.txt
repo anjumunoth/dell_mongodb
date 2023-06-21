@@ -1,0 +1,155 @@
+rs.stepDown(stepDownSecs, secondaryCatchUpPeriodSecs)
+-- Ideally during the maintanence period
+-- Ideally when atleast there is one eligible sec(fully synched and eligible to be primary)
+-- stepDownSecs default -- 60 secs
+-- stepDownSecs -- time for which the primary should remain a secondary. 
+--secondaryCatchUpPeriodSecs -- default value -- 10secs
+-- time for which current primary(which is going to step down) will wait before it can step down. 
+	Waiting for an eligible secondary to catch up with the current primary
+
+P(n1 P5)S(n2 P4)S(n3 P3)
+rs.stepDown(300);
+n1 will become secondary and remain sec for 300 secs
+Since n1 has come down and there is no primary-- trigger an election
+n2 will become the primary;
+Once 300 seconds are over, n1 if fully synched will call for an election and become the primary down.
+
+a. Step down the primary to a secondary.
+b. Convert the secondary to a standalone and then do the index build
+c. Once the index build is over, convert the standalone to secondary
+d. Once the secondary fully sync with the current primary, if it has the highest prioirity, may call for the elections
+
+
+10pm; 
+
+
+Max time for which writes will fail -- secondaryCatchUpPeriodSecs(default 10 secs) + election time period (10 secs);
+
+Connecting to the db from client -- connect to replica set
+Add a member: rs.add()
+Remove a member: rs.remove()
+
+rs.printReplicationInfo() -- Info about the oplog for that particular member to which we are connected
+
+rs.printSecondaryReplicationInfo -- Info about all teh secondarise and their corresponding lag time
+
+rs.reconfig() -- Reconfiguring the replica set
+1. Always run on the primary
+2. Always trigger an election
+3. Always do during the maintanence period 
+
+
+Connect to the primary
+var myConfig=rs.config();
+myConfig.members[1].priority=6;
+rs.reconfig(myConfig);
+
+rs.freeze(secs) -- Makes the member to which the shell is connected ineligible from becoming the primary for the specified time
+-- Can be done on any member
+-- Secondary(second highest priority ) -- build of index/ backup of data; creating reports ; want to prevent it from becoming the primary
+
+90% cpu is used
+db.currentOp() -- current operations at server level
+
+mongotop
+mongostat
+b
+profiler
+
+Create a hidden member
+Connected to primary
+rs.add({host:"localhost:1007",hidden:true,priority:0})
+
+Add a delayed secondary 
+	-- First time the delayed secondary is added -- full initial sync
+  -- After wards, it will sync with the primary after the delay
+  
+rs.add({host:"localhost:1008",secondaryDelaySecs:300,priority:0})
+
+Oplog size
+
+PSSS(DS) -- 5 member RS
+DS -- delay of 24 hours
+Normal day -- 1 million queries; oplog size : 100gb
+Prime day sale -- 10 million queries; 
+7 member replica set; oplog size of primary or eligible secondary(second highest) : 200gb; (delayed sec will sync after 24 hours )
+
+For a particular member
+use admin;
+db.admincommand({})
+
+Oplog -- special capped collection;
+
+Scenario : Oplog is never truncated
+Server : Hard limit : memory
+Min retention period : 72 hours; oplog size grow -- huge / grow beyond the memory
+
+write intensive app;
+oplog entries truncated:
+	oplog grows beyond size AND min retention period for the doc is expired(3days)
+  
+oplog size has grown beyond the 
+
+space and retention period is not over : throw errors and writes will fails 
+
+oplog min retrntion period -- such that it has entries > delayed secondary delay time
+
+delayed secondary -- 24 hours
+oplog min retention size -- 24+4 == 28 hours
+
+Standalone server -- no oplog collection; 
+
+Journal -- write ahead log; we cant traverse through the journal;
+
+Zero priority -- lower oplog size 
+members priority>=1 -- greater oplog size
+
+Replication:
+same data is stored in multiple servers
+
+Sharding
+data is broken up and stored in multiple servers
+
+Sharding:
+Why sharding?
+	-- Space ; Volume of data is huge ; store in a single server
+  -- type of app : write intensive app; read intensive app
+  	read intensive app: faster -- increasing the number of members in replica set
+    	drivers : identify the type of query; read ; drivers: load balance the diverts to the particular members based on readPreference
+    write intensive app: increasing the number of members in replica set -- write queries become faster -- NO; 1 primary to handle writes;write queries : slower
+    -- sharding ; multiple primary servers
+  -- 
+    
+50tb of data; 
+-- server's capacity : 60tb
+-- is data going to grow ???yes; -- data > 60tb;  sharding
+
+2 server sets(shards) with each having a capacity of 40tb
+
+Replica set : 70tb; write servers: 1
+Sharding : 2 shards ; write servers :2
+
+gridfs -- break up the single data into multiple chunks
+doc : > 16 mb or image, videos/images
+
+Read concern
+	-- connection string
+  	mongodb://db0.example.com,db1.example.com,db2.example.com/?replicaSet=myRepl&readConcernLevel=majority
+  -- part of query
+  db.collName.find().readConcern("majority")
+  -- commands to set up read concern for all the dbs (persistent across the sessions)
+  -- 
+  
+  
+gridfs -- 30 mins
+Back up and restore 30 mins 
+performance tuning ; tls, encryption,profiler- 2 days
+user management,ldap -  1 day
+
+
+
+
+
+
+
+

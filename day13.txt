@@ -1,0 +1,379 @@
+Sharding:
+	why sharding
+  	-- space
+    -- multiple write(primary) servers; writes can be faster
+    -- break up data and store in multiple servers;
+    -- reads also become faster; because there are multiple servers who can do the reads. 
+    -- 
+Example
+1tb of data; 1 million docs
+coll scan -- single server scan through 1 million docs
+coll scan -- 3 servers ; each server is only going to scan through its respective 33 million docs; 3 servers are running parallelly
+
+different folders
+office; 
+	-- project1
+  -- project2
+personal
+	-- images
+  -- videos
+
+excel -- metadata
+office : location 
+	-- project1
+  -- project2
+personal
+	-- images
+  -- videos
+
+Adv : faster retrieval
+	organised manner
+  lesser searches
+  
+Disadv: 
+	search not based on office/personal -- take more time
+  
+Sharding:
+mongos -- router
+config server -- hold the metadata
+shard server -- hold the actual data
+
+
+Shards -- 1 or many shards
+Each shard is going to be replica set
+Distribute as equally as possible the data among the various shards
+Shard key 
+	-- Range based sharding 
+  -- hashed based sharding
+Selection of shard key
+
+Employee records -- 1000 docs; empId:1 to 1000
+Range based sharding
+3 shards
+
+Shard A: min key to 350
+Shard B : 350 to 700
+Shard C : 700 to max key
+
+Chunk: Continuous set of docs; Has a configured size
+A Shard can have multiple chunks
+
+Load balancing of the various chunks among the various shards
+Migration of chunks -- Done by balancer
+Chunk split
+	-- Automatically
+  -- Manually
+
+Shard A: Chunk1 : min key to 100
+					Chunk2 : 101 to 300
+          Chunk3 :301 to 350
+          
+Shard B: Chunk1 : 350 to 500
+					Chunk2 : 501 to 700
+  
+Disadv:
+	-- New inserts with empId > 1000 will all be directed to shardC.
+  -- Hot shards should be avoided
+
+Hashed based sharding:
+	Shard key values will be sent to a hashing algorithm. Hashed values will be used for distributing the data among the various shards
+  -- Equal distribution of data among the various shards
+  -- ObjectId, time stamp, date related , monotinically increasing values
+  
+Config server : 
+--metadata of distribution of data among the various chunks and distribution of chunks among the various shards
+--metadata based on shard key
+
+db.emp.find({empId : 200});
+client --> send the query to mongos --> mongos will connect with config server and get the metadata based on query(shard A chunk 2)--> mongos on receiving the metadata from the config server
+--> mongos will send the query only to shard A and chunk 2; shard A will return the respective data to mongos
+--> mongos will return the data to the client
+
+db.emp.find({empId :{$gt:200,$lt600}});
+client --> send the query to mongos --> mongos will connect with config server and get the metadata based on query(shard A shardB and their respective chunks)--> mongos on receiving the metadata from the config server
+--> mongos will send the query only to shard A and shard B; shard A ,Bwill return the respective data to mongos
+--> mongos(combine the data) will return the data to the client
+
+db.emp.find({empId :234567});
+client --> send the query to mongos --> mongos will connect with config server and get the metadata based on query(data not found)-->
+mongos on receiving the metadata (no docs found)from the config server
+--> mongos will return the no docs found to the client
+
+db.emp.find({salary :1234});// query on a non shard key
+Make the query slower
+client --> send the query to mongos --> mongos will connect with config server and get the metadata based on query(no metadata) query on a non shard key
+--> mongos on receiving the metadata from the config server
+--> mongos will broadcast the query to all the shards
+-- each shard will execute the query on its data
+-- mongos will combine the data from all shards and send it to the client
+
+Shard key selection very important
+Majority of queries coming to db should have the shard key as filter
+-- cardinality of shard key -- high cardinality
+		shard key as continents -- 7 continents; max 7 chunks; 
+    each chunk can grow very huge 
+-- frequency of shard key
+-- sharding query patterns
+
+Limitations:
+4.4x add a suffix to shard key
+from 5.0 -- change the shard key
+
+sharded collection cannot be unsharded
+
+
+
+Africa 2 billion people -- 1 chunk
+Asia 3 billion people
+Australia 1 billion people
+
+
+
+Config server -- metadata based on shard key
+
+Shard A: Chunk1 : min key to 100; current chunk size: 60 mb
+					Chunk2 : 101 to 300;; current chunk size: 50 mb
+          Chunk3 :301 to 350; current chunk size: 30 mb
+          
+Shard B: Chunk4 : 350 to 500; current chunk size: 50 mb
+					Chunk5 : 501 to 700; current chunk size: 60 mb
+          
+
+On inserts empId : 110 to 130 ; 20 docs -- size : 15 mb
+insert the above records in chunk 2;
+after insertion : chunk2 size: 65mb 
+65 mb > 64 mb; auto split of chunks
+Shard A: Chunk1 : min key to 100; current chunk size: 60 mb
+					Chunk2 : 101 to 220;; current chunk size: 32.5 mb
+          Chunk3 : 220 to 300;; current chunk size: 32.5 mb
+          Chunk4 :301 to 350; current chunk size: 30 mb
+
+Shard B: Chunk5 : 350 to 500; current chunk size: 50 mb
+					Chunk6 : 501 to 700; current chunk size: 60 mb
+Total number of chunks: 6
+Shard A : 4
+Shard B: 2
+Migration threshold : 2;
+Balancer will migrate the chunks;
+Shard A: Chunk1 : min key to 100; current chunk size: 60 mb
+					Chunk2 : 101 to 220;; current chunk size: 32.5 mb
+          Chunk3 : 220 to 300;; current chunk size: 32.5 mb
+
+Shard B: Chunk4 :301 to 350; current chunk size: 30 mb
+				Chunk5 : 350 to 500; current chunk size: 50 mb
+				Chunk6 : 501 to max key; current chunk size: 60 mb
+        
+db.emp.find({empId:{$gt:80,$lt:200}});// shard A, chunk1,2
+Insertion : 750 to 850 size : 2 mb
+Insertions will happen in chunk 6
+
+Insertion : 850 to 950 size : 12 mb
+Insertions will happen in chunk 6; chunk size : 74 mb
+auto split will happen;
+chunk6 and chunk7 will get the data
+
+Shard A : 3
+Shard B : 4
+No migrations
+
+Insertions 1000 to 1100;55mb
+chunk 8 in shard B
+Shard A :3
+shard B : 5
+
+Migrations will occur:
+Shard A: Chunk1 : min key to 100; current chunk size: 60 mb
+					Chunk2 : 101 to 220;; current chunk size: 32.5 mb
+          Chunk3 : 220 to 300;; current chunk size: 32.5 mb
+				 Chunk4 :301 to 350; current chunk size: 30 mb
+
+Shard B:
+				Chunk5 : 350 to 500; current chunk size: 50 mb
+				Chunk6 : 501 to max key; current chunk size: 60 mb
+				Chunk 7:
+        Chunk 8:
+  
+Chunk size --10mb
+Doc size: 13mb empId: 112; 
+
+In a single chunk -- doc with 112 will be stored; // jumbo chunk ;size>configured size
+// indivisible chunk ; chunk has only one doc, chunk cannot be split; 
+// a doc entirely can reside only in 1 chunk; 
+
+chunk size: 20 mb;
+Docs size: 22mb empId: 113,empId:114; jumbo chunk ; size >configured size;
+chunk will be split into 2 equal halves (as equal as possible)
+
+Balancer -- enabled or disabled; mongo internal process
+Best practice: Enable the balancer during the maintanence period
+
+Config server:
+<4.2 Config server could be a stanalone
+>=4.4 config server must be replica set
+High availability
+
+shards -- replica set; High availability
+
+2 shards -- 2 replica sets; 2 primary put together; writes may be faster
+
+mongos -- not a mongod server; a router; cannot be replica set; multiple mongos as part of deployment
+
+
+
+Config server : PSS
+
+2001,2002,2003
+data1,data2,data3
+csrs1
+
+Create 3 folders data1, data2,data3
+Create 3 mongod.conf files
+Make the neccessary changes; dbpath, systemlog path, port, replSetName, sharding clusterRole: configsvr
+
+mongod1.conf, mongod2.conf, mongod3.conf
+
+Open a terminal
+sudo mongod --config "path to mongod1.conf"
+
+Open a new tab
+sudo mongod --config "path to mongod2.conf"
+
+Open a new tab
+sudo mongod --config "path to mongod3.conf"
+
+Open a new terminal
+Connect from mongo shell to one of the above servers
+mongosh --port 2001
+
+rs.initiate({
+	_id:"csrs1",
+  members:[
+  {_id:0,host:"localhost:2001"},
+  {_id:1,host:"localhost:2002"},
+  {_id:2,host:"localhost:2003"},
+  ]
+})
+Output : {Ok:1}
+
+Shard A:PSS
+
+data4,data5,data6
+2004,2005,2006
+shardrs1
+Create 3 mongod.conf files
+Make the neccessary changes; dbpath, systemlog path, port, replSetName, sharding clusterRole: shardsvr
+
+mongod4.conf, mongod5.conf, mongod6.conf
+
+Open a terminal
+sudo mongod --config "path to mongod4.conf"
+
+Open a new tab
+sudo mongod --config "path to mongod5.conf"
+
+Open a new tab
+sudo mongod --config "path to mongod6.conf"
+
+Open a new terminal
+Connect from mongo shell to one of the above servers
+mongosh --port 2004
+
+rs.initiate({
+	_id:"shardrs1",
+  members:[
+  {_id:0,host:"localhost:2004"},
+  {_id:1,host:"localhost:2005"},
+  {_id:2,host:"localhost:2006"},
+  ]
+})
+Output : {Ok:1}
+
+
+Shard B:PSS
+
+data7,data8,data9
+2007,2008,2009
+shardrs2
+Create 3 mongod.conf files
+Make the neccessary changes; dbpath, systemlog path, port, replSetName, sharding clusterRole: shardsvr
+
+mongod7.conf, mongod8.conf, mongod9.conf
+
+Open a terminal
+sudo mongod --config "path to mongod7.conf"
+
+Open a new tab
+sudo mongod --config "path to mongod8.conf"
+
+Open a new tab
+sudo mongod --config "path to mongod9.conf"
+
+Open a new terminal
+Connect from mongo shell to one of the above servers
+mongosh --port 2007
+
+rs.initiate({
+	_id:"shardrs2",
+  members:[
+  {_id:0,host:"localhost:2007"},
+  {_id:1,host:"localhost:2008"},
+  {_id:2,host:"localhost:2009"},
+  ]
+})
+Output : {Ok:1}
+
+Config Replica set, shard A replica set, shard B replica set -- are running
+
+Mongos: Stateless router
+-- Port 3001
+
+mongos --port 3001 --configdb csrs1/localhost:2001
+
+or
+mongosConfFile.conf:
+sharding:
+  configDB: csrs1/localhost:2001,localhost:2002
+
+net:
+  port: 3001
+  bindIp: 127.0.0.1
+  
+mongos --config "path to mongosConFile"
+
+Mongos has started off
+
+Open a new terminal
+client -> mongos
+
+mongosh --port 3001
+
+Add the shards
+
+sh.addShard("shardrs1/localhost:2004");
+sh.addShard("shardrs2/localhost:2007");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
