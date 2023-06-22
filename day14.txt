@@ -1,0 +1,176 @@
+1. Why auto migrations are not happening
+2. max desired size for chunk-- splitFind
+
+
+https://github.com/anjumunoth/dell_mongodb
+Config server
+-- 2001,2002,2003
+Shard A
+-- 2004,2005,2006
+
+Shard B
+-- 2007,2008,2009
+
+Mongos -- stateless query router
+	-- 3001
+	--configDB
+  sh.addShard() -- added 2 shards
+
+Connected the shell to mongos
+mongosh --port 3001
+
+sh.status()
+use shardingDb
+
+sh.enableSharding("shardingDb")
+
+Shard a collection
+-- Range based sharding or hashed based sharding
+-- shard key
+	-- Simple or composite key
+-- Asc Index on shard key
+
+Option 1:
+_id as shard key
+Percentage of queries which will have a filter on _id: 10%
+db.zicode.find({_id:"value"});//
+90% of queries will have not have _id; mongos -- broadcast operation; avoid broadcast
+Not a good choice
+
+Option 2: best choice
+state
+Percentage of queries which will have a filter on state: 40%
+Range based 
+
+
+Option 3:
+city
+Percentage of queries which will have a filter on city: 40%
+Range based sharding
+
+Option 4:
+state and city
+Not a very good option
+Percentage of queries which will have a filter on state and city: 40%
+Not help with the queries which are based only on state
+
+
+Primary shard: 
+--All the unsharded databases and unsharded collections will be stored. For these there will be no chunks
+-- sharded collections will be stored
+-- One of the shards will be primary shard
+
+Range based sharding
+Create the index
+db.zipcode.createIndex({state:1});// range based sharding
+
+sh.shardCollection("shardingDb.zipcode",{state:1});// range based sharding
+
+
+Hashed based sharding
+Create the index
+db.zipcode.createIndex({state:"hashed"});// range based sharding
+
+sh.shardCollection("shardingDb.zipcode",{state:"hashed"});// range based sharding
+
+sh.status();
+db.adminCommand({listShards:1})
+
+db.printShardingStatus()
+
+sh.balancerCollectionStatus("shardingDb.zipcode")
+
+sh.splitAt("shardingDb.zipcode",{state:"MA"})
+	-- Divided the chunk which has state:"MA"
+  -- Divided the chunk into 2 chunks at state:"MA"
+sh.splitAt("shardingDb.zipcode",{state:"RI"})
+
+
+sh.splitFind("shardingDb.zipcode",{state:"NH"})
+-- Divide the chunk which has the value state:"NH"
+-- Divide into 2 equal(as equal as possible) chunks (size)
+
+Chunk1 : a to z ; size : 12mb
+splitFind("aa",{field:"z"});
+chunk1: a to d; size : 6.1mb
+chunk 2: d to z; size : 5.9mb
+
+
+ShardingDB> sh.splitFind("ShardingDB.zipcode",{state:"OH"});// db.collection.getShardDistribution();
+
+Disabled the balancer: No migrations
+Shard A : 8 chunks
+Shard B: 5 chunks
+
+Why manually splitting:
+1.
+Maintanence period : Enable balancer
+1. Option1 :Balancing the chunks. Migrate 2 chunks from shard A to shard B
+2. Option 2: Manually split 2 chunks in shard B ; Chunks in shard B : 7; No migrations required
+Migrations is a costly process
+1. Splitting a chunk is easier an performance wise better
+
+Option2 is better
+
+2. Hot chunk : queries are targeted at this chunk
+many queries : state:"MA"
+manually split : number of docs in that chunk is lesser
+Avoid hot chunks
+
+Auto split happens only when : chunk size > 128mb
+
+Move chunk from 1 shard to another
+sh.moveChunk("shardingDb.zipcode",{state:"MA"},"shardrs1")
+
+No journalling
+7:00: 00 Am
+Checkpoint 1; writes will stored in disk(data file)
+
+7:01 Am
+Checkpoint 2; writes will stored in disk
+
+7:02 Am
+Checkpoint 2; writes will stored in disk
+After the checkpoint
+db.emp.insertOne({empId:777}); Client has got the ack
+System shutdown: {empId: 777} has not got persisted -- data has got lost
+
+7:03 Am
+Checkpoint 3; writes will stored in disk
+
+Journalling enabled:
+7:00: 00 Am
+Checkpoint 1; writes will stored in disk(data file)
+
+7:01 Am
+Checkpoint 2; writes will stored in disk
+
+7:02 Am
+Checkpoint 2; writes will stored in disk
+After the checkpoint
+db.emp.insertOne({empId:777}); Insert op will be logged in the journal file;Client has got the ack;
+Journal will be flushed to disk every 50ms
+System shutdown: {empId: 777} has not got persisted ; 
+system comes back; journal entries will be checked automatically
+there are journal entries after checkpoint 2. journal entries will get executed.
+{empId:777} will be added to the disk;
+
+Scenario 2:
+7:02 Am
+Checkpoint 2; writes will stored in disk
+After the checkpoint
+journal entries have been flushed every 50 ms
+db.emp.insertOne({empId:777}); Insert op will be logged in the journal file(memory);Client has got the ack;
+System shutdown: {empId: 777} has not got persisted ; 
+system comes back; journal entries will be checked automatically but it does not have {empId:777}
+{empId:777} will be lost
+
+Mongodb : Limitations:
+No journalling -- Accept data losses upto 60 secs
+With journalling -- Accept data losses upto 50 ms
+
+
+
+
+
+
